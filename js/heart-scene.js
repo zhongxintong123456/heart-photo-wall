@@ -164,6 +164,14 @@ function setupPostProcessing() {
     bloomPass.radius = 0.5;
 
     composer = new EffectComposer(renderer);
+    // The bloom pipeline draws to its own buffers, so renderer antialiasing alone misses these edges.
+    if (renderer.capabilities.isWebGL2) {
+        const gl = renderer.getContext();
+        const supported = gl.getInternalformatParameter(gl.RENDERBUFFER, gl.RGBA16F, gl.SAMPLES);
+        const samples = Array.from(supported || []).find(count => count > 0 && count <= 4) || 0;
+        composer.renderTarget1.samples = samples;
+        composer.renderTarget2.samples = samples;
+    }
     composer.addPass(renderScene);
     composer.addPass(bloomPass);
 }
@@ -503,6 +511,7 @@ function loadMediaPhotos() {
             imgSrc,
             (texture) => {
                 texture.colorSpace = THREE.SRGBColorSpace;
+                texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
                 addPhotoToScene(texture, item, index);
             },
             undefined,
@@ -821,8 +830,8 @@ function adaptQuality() {
 
     qualityChecked = true;
     if (qualityFrames / clock.elapsedTime < 24) {
-        renderer.setPixelRatio(0.75);
-        composer.setPixelRatio(0.75);
+        renderer.setPixelRatio(1);
+        composer.setPixelRatio(1);
     }
 }
 

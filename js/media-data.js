@@ -3,22 +3,25 @@ const personalPhotos = [];
 
 function createPlaceholder() {
   const card = document.createElement('canvas');
-  card.width = 240;
-  card.height = 336;
+  const width = 240;
+  const height = 336;
+  card.width = width * 2;
+  card.height = height * 2;
   const ink = card.getContext('2d');
-  const paper = ink.createLinearGradient(0, 0, card.width, card.height);
+  ink.scale(2, 2);
+  const paper = ink.createLinearGradient(0, 0, width, height);
   paper.addColorStop(0, '#5f515e');
   paper.addColorStop(1, '#413b48');
   ink.fillStyle = paper;
-  ink.fillRect(0, 0, card.width, card.height);
+  ink.fillRect(0, 0, width, height);
   ink.strokeStyle = '#d980a9';
   ink.lineWidth = 2;
-  ink.strokeRect(1, 1, card.width - 2, card.height - 2);
+  ink.strokeRect(1, 1, width - 2, height - 2);
   ink.fillStyle = '#d1b8c6';
   ink.textAlign = 'center';
   ink.textBaseline = 'middle';
   ink.font = 'italic 26px Georgia, serif';
-  ink.fillText('Memory', card.width / 2, card.height / 2);
+  ink.fillText('Memory', width / 2, height / 2);
   return { type: 'image', title: '留影', src: card.toDataURL() };
 }
 
