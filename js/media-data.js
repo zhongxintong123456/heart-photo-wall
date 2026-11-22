@@ -66,9 +66,17 @@ async function accessSavedPhotos(photos) {
 function setUploadedPhotos(photos) {
   const oldMedia = window.mediaData;
   uploadedPhotos = photos;
-  window.mediaData = photos.map(({ blob, title }) => ({ type: 'image', title, src: URL.createObjectURL(blob) }));
+  window.mediaData = photos.map(({ blob, thumbnail, title }) => ({
+    type: 'image',
+    title,
+    src: URL.createObjectURL(blob),
+    thumbnail: thumbnail ? URL.createObjectURL(thumbnail) : undefined,
+  }));
   window.dispatchEvent(new Event('heart-photos-changed'));
-  oldMedia.filter(item => item.src.startsWith('blob:')).forEach(item => URL.revokeObjectURL(item.src));
+  for (const { src, thumbnail } of oldMedia) {
+    if (src.startsWith('blob:')) URL.revokeObjectURL(src);
+    if (thumbnail?.startsWith('blob:')) URL.revokeObjectURL(thumbnail);
+  }
 }
 
 function updateUploadStatus(message = '') {
@@ -79,20 +87,28 @@ function updateUploadStatus(message = '') {
   replacePhotos.disabled = !uploadReady || uploadBusy;
 }
 
+async function encodePhoto(image, maxSide, quality) {
+  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext('2d', { alpha: false });
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+  if (!blob) throw new Error('Could not prepare photo');
+  return blob;
+}
+
 async function preparePhoto(file) {
   const uri = URL.createObjectURL(file);
   try {
     const image = new Image();
     image.src = uri;
     await image.decode();
-    const scale = Math.min(1, 1440 / Math.max(image.naturalWidth, image.naturalHeight));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    canvas.getContext('2d', { alpha: false }).drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.88));
-    if (!blob) throw new Error('Could not prepare photo');
-    return { blob, title: file.name.replace(/\.[^.]+$/, '') || '照片' };
+    const blob = await encodePhoto(image, 2560, 0.94);
+    const thumbnail = await encodePhoto(image, 1440, 0.95);
+    return { blob, thumbnail, title: file.name.replace(/\.[^.]+$/, '') || '照片' };
   } finally {
     URL.revokeObjectURL(uri);
   }

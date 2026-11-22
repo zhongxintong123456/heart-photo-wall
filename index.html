@@ -6,7 +6,7 @@
   <meta name="description" content="一张用照片和星光拼成的手势互动贺卡。">
   <meta name="theme-color" content="#110e16">
   <title>爱心照片墙</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=photo-quality">
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@mediapipe/tasks-vision":"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"}}
   </script>
@@ -14,6 +14,7 @@
 <body>
   <main id="heart-screen">
     <div id="heart-canvas-container" aria-hidden="true"></div>
+    <img id="focused-photo" alt="" decoding="async" hidden>
     <div id="love-reveal" aria-hidden="true"><span>LOVE</span></div>
     <div id="heart-loader" role="status">正在点亮照片墙…</div>
     <div id="heart-ui-layer">
@@ -54,14 +55,27 @@
       <button type="button" id="next" aria-label="下一张">→</button>
     </nav>
   </dialog>
-  <script src="js/media-data.js"></script>
+  <script src="js/media-data.js?v=photo-quality"></script>
   <script type="module">
-    const scene = import('./js/heart-scene.js')
-    scene.then(() => window.initHeartScene()).catch(() => {
-      document.querySelector('#heart-loader').textContent = '3D 场景暂时无法加载，仍可浏览相册。'
+    function showSceneFallback() {
+      const status = document.querySelector('#heart-loader')
+      status.classList.add('scene-fallback')
+      status.textContent = '3D 场景暂时无法加载，仍可浏览相册。'
+      if (location.protocol === 'file:') {
+        status.textContent = '请通过网页地址打开 3D 照片墙。'
+        const preview = document.createElement('a')
+        preview.href = 'http://127.0.0.1:8767/'
+        preview.textContent = '打开本机预览'
+        const published = document.createElement('a')
+        published.href = 'https://zhongxintong123456.github.io/heart-photo-wall/'
+        published.textContent = '打开正式网址'
+        status.append(document.createElement('br'), preview, published)
+      }
       document.querySelector('#scatter').disabled = true
       document.querySelector('#heart-cam-btn').disabled = true
-    })
+    }
+    if (location.protocol === 'file:') showSceneFallback()
+    else import('./js/heart-scene.js?v=photo-quality').then(() => window.initHeartScene()).catch(showSceneFallback)
   </script>
 </body>
 </html>

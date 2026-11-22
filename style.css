@@ -10,6 +10,14 @@ body { margin: 0; }
 #heart-canvas-container { position: absolute; inset: 0; touch-action: none; cursor: grab; }
 #heart-canvas-container:active { cursor: grabbing; }
 #heart-canvas-container canvas { display: block; }
+#focused-photo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  cursor: pointer;
+}
 #love-reveal {
   position: absolute;
   top: 51%;
@@ -69,6 +77,8 @@ body { margin: 0; }
   50% { opacity: .45; transform: scale(.96); }
 }
 #heart-loader { position: absolute; top: 50%; width: 100%; text-align: center; pointer-events: none; color: #c6b1b0; transition: opacity .35s; }
+#heart-loader.scene-fallback { z-index: 1; pointer-events: auto; }
+#heart-loader.scene-fallback a { display: inline-block; margin: 10px 6px 0; color: #f5d2dc; }
 #heart-ui-layer {
   position: absolute;
   inset: 0;

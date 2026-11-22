@@ -59,6 +59,8 @@ const photoTilt = new THREE.Euler();
 const photoTiltRotation = new THREE.Quaternion();
 const photoFacingRotation = new THREE.Quaternion();
 const focusPosition = new THREE.Vector3();
+const focusedPhoto = document.querySelector('#focused-photo');
+let focusedPhotoReady = false;
 
 // ─── PUBLIC API (called from main.js) ─────────────────────────
 window.initHeartScene = function () {
@@ -535,7 +537,7 @@ function loadMediaPhotos() {
                     return;
                 }
                 texture.colorSpace = THREE.SRGBColorSpace;
-                texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+                texture.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
                 addPhotoToScene(texture, item, slots);
             },
             undefined,
@@ -642,6 +644,9 @@ function setupClickEventsOnly() {
 }
 
 function setArrangement(mode, focusTarget = null) {
+    if (STATE.focusTarget) STATE.focusTarget.visible = true;
+    focusedPhoto.hidden = true;
+    focusedPhotoReady = false;
     STATE.mode = mode;
     STATE.focusTarget = focusTarget;
     const expanded = mode !== 'HEART';
@@ -650,6 +655,16 @@ function setArrangement(mode, focusTarget = null) {
     document.querySelector('#scatter').setAttribute('aria-pressed', String(expanded));
     const caption = document.querySelector('#heart-focus-caption');
     const item = focusTarget?.userData.mediaItem;
+    // Keep the original placeholder effect and use the sharp image for real photos.
+    if (item && !item.isPlaceholder) {
+        focusedPhoto.src = item.src;
+        // Decode during the flight; keep the 3D image visible until its replacement is ready.
+        focusedPhoto.decode().then(() => {
+            if (STATE.focusTarget === focusTarget && focusedPhoto.src === item.src) focusedPhotoReady = true;
+        }).catch(() => {});
+    } else {
+        focusedPhoto.removeAttribute('src');
+    }
     caption.hidden = !item;
     caption.textContent = item ? [item.title, item.description].filter(Boolean).join('\n') : '';
 }
@@ -786,6 +801,7 @@ function setupEvents() {
         updatePhotoLayout();
         renderer.setSize(window.innerWidth, window.innerHeight);
         if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+        sizeFocusedPhoto();
     });
 
     // Gesture button
@@ -795,6 +811,10 @@ function setupEvents() {
         setArrangement(STATE.mode === 'HEART' ? 'SCATTER' : 'HEART');
     });
     document.querySelector('#focus').addEventListener('click', focusRandomPhoto);
+    focusedPhoto.addEventListener('click', () => {
+        const item = STATE.focusTarget?.userData.mediaItem;
+        if (item) openMediaViewer(item);
+    });
     window.addEventListener('pagehide', stopCamera);
 
     // H key to toggle UI
@@ -821,6 +841,18 @@ function openMediaViewer(mediaItem) {
     if (index >= 0) window.showPhoto(index);
 }
 
+function focusDistance() {
+    return Math.max(16, 12 / camera.aspect);
+}
+
+function sizeFocusedPhoto() {
+    const shape = STATE.focusTarget?.children[0].geometry.parameters;
+    if (!shape) return;
+    const pixelsPerUnit = window.innerHeight / (2 * focusDistance() * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    focusedPhoto.style.width = `${shape.width * 5.1 * pixelsPerUnit}px`;
+    focusedPhoto.style.height = `${shape.height * 5.1 * pixelsPerUnit}px`;
+}
+
 function animate() {
     animationId = requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), MAX_FRAME_DELTA);
@@ -835,12 +867,16 @@ function animate() {
     mainGroup.rotation.y = STATE.rotation.y;
     mainGroup.getWorldQuaternion(photoFacingRotation).invert();
     if (STATE.focusTarget) {
-        const distance = Math.max(16, 12 / camera.aspect);
-        mainGroup.worldToLocal(focusPosition.set(0, camera.position.y, camera.position.z - distance));
+        mainGroup.worldToLocal(focusPosition.set(0, camera.position.y, camera.position.z - focusDistance()));
     }
 
     // Update all particles
     particleSystem.forEach(p => p.update(dt, STATE.mode, STATE.focusTarget));
+    if (STATE.focusTarget && focusedPhoto.hidden && focusedPhotoReady && STATE.focusTarget.scale.x >= 5.02) {
+        sizeFocusedPhoto();
+        STATE.focusTarget.visible = false;
+        focusedPhoto.hidden = false;
+    }
     instancedMeshes.forEach(mesh => { mesh.instanceMatrix.needsUpdate = true; });
 
     // Update sparkles
