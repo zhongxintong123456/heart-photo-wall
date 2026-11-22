@@ -60,17 +60,15 @@
     function showSceneFallback() {
       const status = document.querySelector('#heart-loader')
       status.classList.add('scene-fallback')
-      status.textContent = '3D 场景暂时无法加载，仍可浏览相册。'
       if (location.protocol === 'file:') {
-        status.textContent = '请通过网页地址打开 3D 照片墙。'
-        const preview = document.createElement('a')
-        preview.href = 'http://127.0.0.1:8767/'
-        preview.textContent = '打开本机预览'
         const published = document.createElement('a')
         published.href = 'https://zhongxintong123456.github.io/heart-photo-wall/'
-        published.textContent = '打开正式网址'
-        status.append(document.createElement('br'), preview, published)
+        published.textContent = '打开网址'
+        status.replaceChildren(published)
+        document.querySelector('#heart-ui-layer').style.display = 'none'
+        return
       }
+      status.textContent = '3D 场景暂时无法加载，仍可浏览相册。'
       document.querySelector('#scatter').disabled = true
       document.querySelector('#heart-cam-btn').disabled = true
     }
