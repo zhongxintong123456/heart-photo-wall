@@ -272,11 +272,13 @@ class Particle {
         if (this.type === 'PHOTO') {
             this.updatePhotoMotion(dt, expanded);
             const isFocused = this.mesh === focusTargetMesh;
-            const approachDuration = reducedMotion.matches ? 0.28 : 3.4;
+            // Accelerate the early flight while preserving the timing of the final photo blend.
+            const fastWeight = 1 - THREE.MathUtils.smoothstep(this.focusProgress, 0.32, 0.76);
+            const approachSpeed = reducedMotion.matches ? 1 / 0.28 : THREE.MathUtils.lerp(1 / 3.4, 1 / 1.8, fastWeight);
             const approachLimit = isFocused && focusImageStatus === 'pending' ? 0.82 : 1;
             const approachStep = approachLimit < 1
-                ? Math.min(dt / approachDuration, Math.max(0, approachLimit - this.focusProgress) * -Math.expm1(-9 * dt))
-                : dt / approachDuration;
+                ? Math.min(dt * approachSpeed, Math.max(0, approachLimit - this.focusProgress) * -Math.expm1(-9 * dt))
+                : dt * approachSpeed;
             this.focusProgress = THREE.MathUtils.clamp(
                 this.focusProgress + (isFocused ? approachStep : -dt / 0.48),
                 0,

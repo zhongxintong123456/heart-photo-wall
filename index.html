@@ -75,7 +75,7 @@
       document.querySelector('#heart-cam-btn').disabled = true
     }
     if (location.protocol === 'file:') showSceneFallback()
-    else import('./js/heart-scene.js?v=focus-flight-slow').then(() => window.initHeartScene()).catch(showSceneFallback)
+    else import('./js/heart-scene.js?v=focus-flight-paced').then(() => window.initHeartScene()).catch(showSceneFallback)
   </script>
 </body>
 </html>
