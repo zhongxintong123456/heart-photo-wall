@@ -60,7 +60,6 @@ const photoTiltRotation = new THREE.Quaternion();
 const photoFacingRotation = new THREE.Quaternion();
 const focusPosition = new THREE.Vector3();
 const focusedPhoto = document.querySelector('#focused-photo');
-let focusedPhotoReady = false;
 
 // ─── PUBLIC API (called from main.js) ─────────────────────────
 window.initHeartScene = function () {
@@ -530,8 +529,10 @@ function loadMediaPhotos() {
     });
     for (const [item, slots] of slotsByItem) {
         loader.load(
-            item.thumbnail || item.src,
-            (texture) => {
+            item.src,
+            async (texture) => {
+                // Finish decoding before introducing the photo into either view.
+                await texture.image.decode().catch(() => {});
                 if (version !== photoLoadVersion) {
                     texture.dispose();
                     return;
@@ -543,7 +544,7 @@ function loadMediaPhotos() {
             undefined,
             (err) => {
                 if (version !== photoLoadVersion) return;
-                console.warn(`Failed to load thumbnail for "${item.title}":`, err);
+                console.warn(`Failed to load photo "${item.title}":`, err);
                 const debugInfo = document.getElementById('heart-debug-info');
                 if (debugInfo) debugInfo.textContent = '有照片暂时无法加载';
             }
@@ -646,7 +647,7 @@ function setupClickEventsOnly() {
 function setArrangement(mode, focusTarget = null) {
     if (STATE.focusTarget) STATE.focusTarget.visible = true;
     focusedPhoto.hidden = true;
-    focusedPhotoReady = false;
+    focusedPhoto.replaceChildren();
     STATE.mode = mode;
     STATE.focusTarget = focusTarget;
     const expanded = mode !== 'HEART';
@@ -655,15 +656,11 @@ function setArrangement(mode, focusTarget = null) {
     document.querySelector('#scatter').setAttribute('aria-pressed', String(expanded));
     const caption = document.querySelector('#heart-focus-caption');
     const item = focusTarget?.userData.mediaItem;
-    // Keep the original placeholder effect and use the sharp image for real photos.
     if (item && !item.isPlaceholder) {
-        focusedPhoto.src = item.src;
-        // Decode during the flight; keep the 3D image visible until its replacement is ready.
-        focusedPhoto.decode().then(() => {
-            if (STATE.focusTarget === focusTarget && focusedPhoto.src === item.src) focusedPhotoReady = true;
-        }).catch(() => {});
-    } else {
-        focusedPhoto.removeAttribute('src');
+        // Use the actual image element backing the 3D card, not a second load.
+        const photo = focusTarget.children[0].material.map.image;
+        photo.alt = '';
+        focusedPhoto.append(photo);
     }
     caption.hidden = !item;
     caption.textContent = item ? [item.title, item.description].filter(Boolean).join('\n') : '';
@@ -872,7 +869,7 @@ function animate() {
 
     // Update all particles
     particleSystem.forEach(p => p.update(dt, STATE.mode, STATE.focusTarget));
-    if (STATE.focusTarget && focusedPhoto.hidden && focusedPhotoReady && STATE.focusTarget.scale.x >= 5.02) {
+    if (STATE.focusTarget && focusedPhoto.hidden && focusedPhoto.firstElementChild && STATE.focusTarget.scale.x >= 5.02) {
         sizeFocusedPhoto();
         STATE.focusTarget.visible = false;
         focusedPhoto.hidden = false;

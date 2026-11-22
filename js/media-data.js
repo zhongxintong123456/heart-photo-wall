@@ -66,16 +66,14 @@ async function accessSavedPhotos(photos) {
 function setUploadedPhotos(photos) {
   const oldMedia = window.mediaData;
   uploadedPhotos = photos;
-  window.mediaData = photos.map(({ blob, thumbnail, title }) => ({
+  window.mediaData = photos.map(({ blob, title }) => ({
     type: 'image',
     title,
     src: URL.createObjectURL(blob),
-    thumbnail: thumbnail ? URL.createObjectURL(thumbnail) : undefined,
   }));
   window.dispatchEvent(new Event('heart-photos-changed'));
-  for (const { src, thumbnail } of oldMedia) {
+  for (const { src } of oldMedia) {
     if (src.startsWith('blob:')) URL.revokeObjectURL(src);
-    if (thumbnail?.startsWith('blob:')) URL.revokeObjectURL(thumbnail);
   }
 }
 
@@ -106,9 +104,8 @@ async function preparePhoto(file) {
     const image = new Image();
     image.src = uri;
     await image.decode();
-    const blob = await encodePhoto(image, 2560, 0.94);
-    const thumbnail = await encodePhoto(image, 1440, 0.95);
-    return { blob, thumbnail, title: file.name.replace(/\.[^.]+$/, '') || '照片' };
+    const blob = await encodePhoto(image, 1920, 0.95);
+    return { blob, title: file.name.replace(/\.[^.]+$/, '') || '照片' };
   } finally {
     URL.revokeObjectURL(uri);
   }
