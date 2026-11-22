@@ -82,6 +82,21 @@ body { margin: 0; }
 header { animation: appear .75s ease both; }
 @keyframes appear { from { opacity: 0; transform: translateY(6px); } }
 header p { margin: 0; color: #d9bdc0; font-size: clamp(16px, 2.3vw, 23px); letter-spacing: .13em; }
+#upload-photos { margin-top: 10px; min-height: 38px; }
+#photo-upload-dialog {
+  width: min(420px, calc(100% - 32px));
+  border: 1px solid #654a53;
+  border-radius: 20px;
+  padding: 24px 18px;
+  background: #201820;
+  color: #f5e9df;
+  text-align: center;
+}
+#photo-upload-dialog::backdrop { background: #09070ccf; }
+#photo-upload-dialog h2 { margin: 0; font-size: 21px; font-weight: 600; }
+#photo-upload-dialog p { color: #d9bdc0; font-size: 13px; }
+#photo-upload-status { min-height: 1.5em; line-height: 1.5; }
+#add-photos { background: #e6b69e; color: #21161c; border-color: #e6b69e; }
 .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
 button {
   pointer-events: auto;

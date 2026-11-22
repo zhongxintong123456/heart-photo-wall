@@ -40,6 +40,7 @@ let mainGroup;
 let clock = new THREE.Clock();
 let particleSystem = [];
 let photoMeshGroup = new THREE.Group();
+let photoLoadVersion = 0;
 let handLandmarker, video;
 let sparkleSystem;
 const sparkleOrbits = [];
@@ -464,7 +465,7 @@ function updatePhotoLayout() {
 }
 
 // ─── ADD PHOTO TO SCENE ───────────────────────────────────────
-function addPhotoToScene(texture, mediaItem, mediaIndex) {
+function addPhotoToScene(texture, mediaItem, slots) {
     let width = 1.2, height = 1.2;
     if (texture.image) {
         const aspect = texture.image.width / texture.image.height;
@@ -475,7 +476,7 @@ function addPhotoToScene(texture, mediaItem, mediaIndex) {
     const photoGeo = new THREE.PlaneGeometry(width, height);
     const photoMat = new THREE.MeshBasicMaterial({ map: texture });
     // Use one texture per image even when the same image fills multiple slots.
-    for (let slot = mediaIndex; slot < HEART_PHOTO_COUNT; slot += window.mediaData.length) {
+    for (const slot of slots) {
         const photo = new THREE.Mesh(photoGeo, photoMat);
         photo.position.z = 0.004;
         const back = new THREE.Mesh(photoGeo, photoMat);
@@ -501,31 +502,51 @@ function addPhotoToScene(texture, mediaItem, mediaIndex) {
 
 // ─── LOAD MEDIA FROM window.mediaData ─────────────────────────
 function loadMediaPhotos() {
-    if (!window.mediaData || window.mediaData.length === 0) return;
-    const loader = new THREE.TextureLoader();
-    let errorCount = 0;
+    const version = ++photoLoadVersion;
+    const materials = new Set();
+    const geometries = new Set();
+    for (const group of photoMeshGroup.children) {
+        for (const face of group.children) {
+            materials.add(face.material);
+            geometries.add(face.geometry);
+        }
+    }
+    for (const material of materials) {
+        material.map.dispose();
+        material.dispose();
+    }
+    for (const geometry of geometries) geometry.dispose();
+    photoMeshGroup.clear();
+    particleSystem = particleSystem.filter(particle => particle.type !== 'PHOTO');
+    document.querySelector('#focus').disabled = true;
 
-    window.mediaData.slice(0, HEART_PHOTO_COUNT).forEach((item, index) => {
-        const imgSrc = item.thumbnail || item.src;
+    const loader = new THREE.TextureLoader();
+    const slotsByItem = new Map();
+    window.photoWallItems().forEach((item, slot) => {
+        if (!slotsByItem.has(item)) slotsByItem.set(item, []);
+        slotsByItem.get(item).push(slot);
+    });
+    for (const [item, slots] of slotsByItem) {
         loader.load(
-            imgSrc,
+            item.thumbnail || item.src,
             (texture) => {
+                if (version !== photoLoadVersion) {
+                    texture.dispose();
+                    return;
+                }
                 texture.colorSpace = THREE.SRGBColorSpace;
                 texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-                addPhotoToScene(texture, item, index);
+                addPhotoToScene(texture, item, slots);
             },
             undefined,
             (err) => {
+                if (version !== photoLoadVersion) return;
                 console.warn(`Failed to load thumbnail for "${item.title}":`, err);
-                errorCount++;
                 const debugInfo = document.getElementById('heart-debug-info');
-                if (debugInfo) {
-                    debugInfo.innerText = `⚠️ Error: Could not load ${errorCount} photo(s). Check filenames!`;
-                    debugInfo.style.color = '#ff4444';
-                }
+                if (debugInfo) debugInfo.textContent = '有照片暂时无法加载';
             }
         );
-    });
+    }
 }
 
 // ─── TOUCH + CLICK ────────────────────────────────────────────
@@ -634,14 +655,18 @@ function setArrangement(mode, focusTarget = null) {
 }
 
 function focusRandomPhoto() {
-    const seen = new Set([STATE.focusTarget?.userData.mediaItem]);
+    const currentPhoto = STATE.focusTarget?.userData.mediaItem;
+    const hasPersonalPhotos = window.mediaData.some(item => !item.isPlaceholder);
+    const seen = new Set([currentPhoto]);
     const photos = photoMeshGroup.children.filter(photo => {
         const item = photo.userData.mediaItem;
+        if (hasPersonalPhotos && item.isPlaceholder) return false;
         if (seen.has(item)) return false;
         seen.add(item);
         return true;
     });
-    const candidates = photos.length ? photos : photoMeshGroup.children.filter(photo => photo !== STATE.focusTarget);
+    const candidates = photos.length ? photos : photoMeshGroup.children.filter(photo =>
+        !hasPersonalPhotos || !photo.userData.mediaItem.isPlaceholder);
     if (candidates.length) {
         setArrangement('FOCUS', candidates[Math.floor(Math.random() * candidates.length)]);
     }
@@ -749,6 +774,10 @@ function processGestures(result, time) {
 }
 
 function setupEvents() {
+    window.addEventListener('heart-photos-changed', () => {
+        setArrangement('HEART');
+        loadMediaPhotos();
+    });
     window.addEventListener('resize', () => {
         if (!renderer) return;
         camera.aspect = window.innerWidth / window.innerHeight;

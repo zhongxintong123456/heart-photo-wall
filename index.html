@@ -17,7 +17,10 @@
     <div id="love-reveal" aria-hidden="true"><span>LOVE</span></div>
     <div id="heart-loader" role="status">正在点亮照片墙…</div>
     <div id="heart-ui-layer">
-      <header><p>把喜欢的瞬间，留在这里。</p></header>
+      <header>
+        <p>把喜欢的瞬间，留在这里。</p>
+        <button type="button" id="upload-photos">上传照片</button>
+      </header>
       <div class="controls">
         <div class="actions">
           <button type="button" id="scatter">散开照片</button>
@@ -31,6 +34,17 @@
     </div>
     <div id="heart-webcam-wrapper"><video id="heart-webcam" autoplay playsinline muted aria-label="手势识别预览"></video></div>
   </main>
+  <dialog id="photo-upload-dialog" aria-labelledby="photo-upload-title">
+    <h2 id="photo-upload-title">上传照片</h2>
+    <p>最多 16 张，照片保存在当前浏览器。</p>
+    <p id="photo-upload-status" role="status"></p>
+    <input id="photo-files" type="file" accept="image/*" multiple hidden>
+    <div class="actions">
+      <button type="button" id="add-photos">添加照片</button>
+      <button type="button" id="replace-photos" hidden>重新选择</button>
+      <form method="dialog"><button type="submit">完成</button></form>
+    </div>
+  </dialog>
   <dialog id="media-viewer-overlay" aria-label="照片相册">
     <div class="viewer-media-wrapper"></div>
     <div class="viewer-caption"><h3></h3><p class="viewer-date" hidden></p><p class="viewer-desc"></p></div>
