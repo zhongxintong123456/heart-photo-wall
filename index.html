@@ -61,10 +61,12 @@
       const status = document.querySelector('#heart-loader')
       status.classList.add('scene-fallback')
       if (location.protocol === 'file:') {
+        const title = document.createElement('h1')
+        title.textContent = document.title
         const published = document.createElement('a')
         published.href = 'https://zhongxintong123456.github.io/heart-photo-wall/'
         published.textContent = '打开网址'
-        status.replaceChildren(published)
+        status.replaceChildren(title, published)
         document.querySelector('#heart-ui-layer').style.display = 'none'
         return
       }
