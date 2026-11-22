@@ -58,8 +58,17 @@ const tempScale = new THREE.Vector3();
 const photoTilt = new THREE.Euler();
 const photoTiltRotation = new THREE.Quaternion();
 const photoFacingRotation = new THREE.Quaternion();
+const focusSpinRotation = new THREE.Quaternion();
+const verticalAxis = new THREE.Vector3(0, 1, 0);
 const focusPosition = new THREE.Vector3();
+const focusWorld = new THREE.Vector3();
+const focusProjection = new THREE.Vector3();
+const focusWorldRotation = new THREE.Quaternion();
+const focusRight = new THREE.Vector3();
+const focusUp = new THREE.Vector3();
 const focusedPhoto = document.querySelector('#focused-photo');
+let focusRequest = 0;
+let focusImageStatus = 'idle';
 
 // ─── PUBLIC API (called from main.js) ─────────────────────────
 window.initHeartScene = function () {
@@ -194,7 +203,9 @@ class Particle {
         this.flipDirection = 1;
         this.driftTurn = 0;
         this.flipOffset = 0;
+        this.focusProgress = 0;
         this.focusBlend = 0;
+        this.focusTurn = 0;
         const speedMult = type === 'PHOTO' ? 0.3 : 2.0;
         this.spinSpeed = new THREE.Vector3(
             (Math.random() - 0.5) * speedMult,
@@ -261,8 +272,21 @@ class Particle {
         if (this.type === 'PHOTO') {
             this.updatePhotoMotion(dt, expanded);
             const isFocused = this.mesh === focusTargetMesh;
-            this.focusBlend = THREE.MathUtils.damp(this.focusBlend, Number(isFocused), 7, dt);
+            const approachDuration = reducedMotion.matches ? 0.28 : 3.4;
+            const approachLimit = isFocused && focusImageStatus === 'pending' ? 0.82 : 1;
+            const approachStep = approachLimit < 1
+                ? Math.min(dt / approachDuration, Math.max(0, approachLimit - this.focusProgress) * -Math.expm1(-9 * dt))
+                : dt / approachDuration;
+            this.focusProgress = THREE.MathUtils.clamp(
+                this.focusProgress + (isFocused ? approachStep : -dt / 0.48),
+                0,
+                approachLimit,
+            );
+            this.focusBlend = THREE.MathUtils.smoothstep(this.focusProgress, 0, 1);
             this.mesh.position.lerp(focusPosition, this.focusBlend);
+            if (!reducedMotion.matches) {
+                this.mesh.position.y += Math.sin(Math.PI * this.focusBlend) * 1.15;
+            }
             const spread = THREE.MathUtils.clamp(this.spread, 0, 1);
             const tilt = this.scatterTilt * spread;
             const fullTurn = 2 * Math.PI;
@@ -282,9 +306,21 @@ class Particle {
             } else {
                 this.driftTurn = 0;
             }
+            if (reducedMotion.matches) {
+                this.focusTurn = 0;
+            } else if (isFocused) {
+                this.focusTurn = this.flipDirection * fullTurn * 2 *
+                    THREE.MathUtils.smoothstep(this.focusProgress, 0, 0.94);
+            } else {
+                // If interrupted, ease out from the current angle instead of snapping.
+                this.focusTurn = (THREE.MathUtils.euclideanModulo(this.focusTurn + Math.PI, fullTurn) - Math.PI) *
+                    Math.exp(-8 * dt);
+            }
             photoTilt.set(tilt * 0.48, turn + tilt * 0.72, tilt);
             const rotation = photoTiltRotation.setFromEuler(photoTilt);
             this.mesh.quaternion.identity().slerp(photoFacingRotation, spread).multiply(rotation).slerp(photoFacingRotation, this.focusBlend);
+            this.mesh.quaternion.multiply(focusSpinRotation.setFromAxisAngle(verticalAxis, this.focusTurn));
+            this.mesh.userData.focusProgress = this.focusProgress;
         } else {
             const lerpSpeed = mode === 'HEART' ? 4 : 6;
             this.mesh.position.lerp(expanded ? this.posScatter : this.posHeart, 1 - Math.exp(-lerpSpeed * dt));
@@ -645,6 +681,8 @@ function setupClickEventsOnly() {
 }
 
 function setArrangement(mode, focusTarget = null) {
+    const request = ++focusRequest;
+    focusImageStatus = 'idle';
     if (STATE.focusTarget) STATE.focusTarget.visible = true;
     focusedPhoto.hidden = true;
     focusedPhoto.replaceChildren();
@@ -661,6 +699,13 @@ function setArrangement(mode, focusTarget = null) {
         const photo = focusTarget.children[0].material.map.image;
         photo.alt = '';
         focusedPhoto.append(photo);
+        // Browsers can discard decoded pixels under memory pressure even if the texture is still available.
+        focusImageStatus = 'pending';
+        photo.decode().then(() => {
+            if (request === focusRequest) focusImageStatus = 'ready';
+        }, () => {
+            if (request === focusRequest) focusImageStatus = 'failed';
+        });
     }
     caption.hidden = !item;
     caption.textContent = item ? [item.title, item.description].filter(Boolean).join('\n') : '';
@@ -798,7 +843,6 @@ function setupEvents() {
         updatePhotoLayout();
         renderer.setSize(window.innerWidth, window.innerHeight);
         if (composer) composer.setSize(window.innerWidth, window.innerHeight);
-        sizeFocusedPhoto();
     });
 
     // Gesture button
@@ -842,12 +886,29 @@ function focusDistance() {
     return Math.max(16, 12 / camera.aspect);
 }
 
-function sizeFocusedPhoto() {
-    const shape = STATE.focusTarget?.children[0].geometry.parameters;
-    if (!shape) return;
-    const pixelsPerUnit = window.innerHeight / (2 * focusDistance() * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    focusedPhoto.style.width = `${shape.width * 5.1 * pixelsPerUnit}px`;
-    focusedPhoto.style.height = `${shape.height * 5.1 * pixelsPerUnit}px`;
+function renderFocusedPhoto() {
+    const target = STATE.focusTarget;
+    if (!target || focusImageStatus !== 'ready') return;
+    const opacity = THREE.MathUtils.smoothstep(target.userData.focusProgress, 0.84, 0.98);
+    if (!opacity) return;
+
+    // Match the moving 3D card while its sharp image fades in during the approach.
+    target.getWorldPosition(focusWorld);
+    focusProjection.copy(focusWorld).project(camera);
+    target.getWorldQuaternion(focusWorldRotation);
+    focusRight.set(1, 0, 0).applyQuaternion(focusWorldRotation);
+    focusUp.set(0, 1, 0).applyQuaternion(focusWorldRotation);
+    const distance = camera.position.z - focusWorld.z;
+    const pixelsPerUnit = window.innerHeight / (2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    const shape = target.children[0].geometry.parameters;
+    focusedPhoto.style.left = `${(focusProjection.x + 1) * 50}%`;
+    focusedPhoto.style.top = `${(1 - focusProjection.y) * 50}%`;
+    focusedPhoto.style.width = `${shape.width * target.scale.x * pixelsPerUnit}px`;
+    focusedPhoto.style.height = `${shape.height * target.scale.y * pixelsPerUnit}px`;
+    focusedPhoto.style.transform = `translate(-50%, -50%) matrix(${focusRight.x}, ${-focusRight.y}, ${-focusUp.x}, ${focusUp.y}, 0, 0)`;
+    focusedPhoto.style.opacity = opacity;
+    focusedPhoto.hidden = false;
+    target.visible = opacity < 1;
 }
 
 function animate() {
@@ -869,11 +930,7 @@ function animate() {
 
     // Update all particles
     particleSystem.forEach(p => p.update(dt, STATE.mode, STATE.focusTarget));
-    if (STATE.focusTarget && focusedPhoto.hidden && focusedPhoto.firstElementChild && STATE.focusTarget.scale.x >= 5.02) {
-        sizeFocusedPhoto();
-        STATE.focusTarget.visible = false;
-        focusedPhoto.hidden = false;
-    }
+    renderFocusedPhoto();
     instancedMeshes.forEach(mesh => { mesh.instanceMatrix.needsUpdate = true; });
 
     // Update sparkles
