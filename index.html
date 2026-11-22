@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="一张用照片和星光拼成的手势互动贺卡。">
+  <meta name="theme-color" content="#110e16">
+  <title>爱心照片墙</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","@mediapipe/tasks-vision":"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"}}
+  </script>
+</head>
+<body>
+  <main id="heart-screen">
+    <div id="heart-canvas-container" aria-hidden="true"></div>
+    <div id="love-reveal" aria-hidden="true"><span>LOVE</span></div>
+    <div id="heart-loader" role="status">正在点亮照片墙…</div>
+    <div id="heart-ui-layer">
+      <header><p>把喜欢的瞬间，留在这里。</p></header>
+      <div class="controls">
+        <div class="actions">
+          <button type="button" id="scatter">散开照片</button>
+          <button type="button" id="heart-cam-btn">开启手势</button>
+          <button type="button" id="focus" disabled>随机聚焦</button>
+          <button type="button" id="browse">浏览相册</button>
+        </div>
+        <p id="heart-debug-info" aria-live="polite">拖动旋转 · 点照片放大</p>
+        <p id="heart-focus-caption" aria-live="polite" hidden></p>
+      </div>
+    </div>
+    <div id="heart-webcam-wrapper"><video id="heart-webcam" autoplay playsinline muted aria-label="手势识别预览"></video></div>
+  </main>
+  <dialog id="media-viewer-overlay" aria-label="照片相册">
+    <div class="viewer-media-wrapper"></div>
+    <div class="viewer-caption"><h3></h3><p class="viewer-date" hidden></p><p class="viewer-desc"></p></div>
+    <button type="button" class="viewer-close-btn" aria-label="关闭照片">×</button>
+    <nav class="viewer-controls" aria-label="照片翻页">
+      <button type="button" id="previous" aria-label="上一张">←</button>
+      <button type="button" id="next" aria-label="下一张">→</button>
+    </nav>
+  </dialog>
+  <script src="js/media-data.js"></script>
+  <script type="module">
+    const scene = import('./js/heart-scene.js')
+    scene.then(() => window.initHeartScene()).catch(() => {
+      document.querySelector('#heart-loader').textContent = '3D 场景暂时无法加载，仍可浏览相册。'
+      document.querySelector('#scatter').disabled = true
+      document.querySelector('#heart-cam-btn').disabled = true
+    })
+  </script>
+</body>
+</html>

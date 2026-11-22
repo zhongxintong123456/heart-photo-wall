@@ -1,0 +1,147 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
+  background: #09070c;
+  color: #f5e9df;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+#heart-screen { position: relative; height: 100svh; min-height: 360px; overflow: hidden; }
+#heart-canvas-container { position: absolute; inset: 0; touch-action: none; cursor: grab; }
+#heart-canvas-container:active { cursor: grabbing; }
+#heart-canvas-container canvas { display: block; }
+#love-reveal {
+  position: absolute;
+  top: 51%;
+  left: 50%;
+  padding-left: .08em;
+  font: 700 clamp(52px, 13.5vw, 220px)/1 Georgia, "Times New Roman", serif;
+  letter-spacing: .08em;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(.7);
+  filter: blur(5px);
+  transition: opacity .28s ease, transform .4s ease, filter .28s ease;
+  pointer-events: none;
+  user-select: none;
+}
+#love-reveal::before {
+  content: "";
+  position: absolute;
+  inset: -12% -11%;
+  background: radial-gradient(ellipse, #e53a7560, #bd245b35 40%, transparent 72%);
+  opacity: .68;
+}
+#love-reveal span {
+  position: relative;
+  display: block;
+  color: #b65d76;
+  background: linear-gradient(175deg, #d790a0c9, #bd5e799e 48%, #a2496eb8);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 .1em #ee39754d);
+}
+#heart-screen.is-scattered #love-reveal {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  filter: blur(0);
+  transition: opacity .43s .08s ease-out, transform .76s .06s cubic-bezier(.16,.94,.32,1.14), filter .55s .07s ease-out;
+}
+#heart-screen.is-scattered #love-reveal::before {
+  animation: love-glow-in .82s .08s both, love-glow-idle 4s .9s ease-in-out infinite;
+}
+#heart-screen.is-scattered #love-reveal span {
+  transform-origin: center 58%;
+  animation: love-sway .86s .08s ease-in-out both;
+}
+@keyframes love-sway {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: translateX(-.025em) rotate(-3deg); }
+  56% { transform: translateX(.019em) rotate(2deg); }
+  78% { transform: translateX(-.006em) rotate(-.65deg); }
+}
+@keyframes love-glow-in {
+  0% { opacity: .1; transform: scale(.7); }
+  38% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: .68; transform: scale(1); }
+}
+@keyframes love-glow-idle {
+  0%, 100% { opacity: .68; transform: scale(1); }
+  50% { opacity: .45; transform: scale(.96); }
+}
+#heart-loader { position: absolute; top: 50%; width: 100%; text-align: center; pointer-events: none; color: #c6b1b0; transition: opacity .35s; }
+#heart-ui-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(24px, 5vh, 60px) 16px max(16px, env(safe-area-inset-bottom));
+  text-align: center;
+  pointer-events: none;
+}
+header { animation: appear .75s ease both; }
+@keyframes appear { from { opacity: 0; transform: translateY(6px); } }
+header p { margin: 0; color: #d9bdc0; font-size: clamp(16px, 2.3vw, 23px); letter-spacing: .13em; }
+.actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+button {
+  pointer-events: auto;
+  min-height: 44px;
+  padding: 7px clamp(11px, 3vw, 17px);
+  border: 1px solid #654a53;
+  border-radius: 100px;
+  background: #201820;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .2s, transform .2s;
+}
+button:hover { background: #382934; transform: translateY(-1px); }
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: 2px solid #efbd9e; outline-offset: 3px; }
+button:disabled { cursor: wait; opacity: .6; }
+#scatter { background: #e6b69e; color: #21161c; border-color: #e6b69e; }
+#scatter:hover { background: #f6cbb5; }
+#heart-debug-info { min-height: 1.4em; margin: 10px 0 0; color: #bca5aa; font-size: 12px; }
+#heart-focus-caption {
+  position: absolute;
+  bottom: 104px;
+  left: 50%;
+  width: min(76%, 440px);
+  transform: translateX(-50%);
+  margin: 0;
+  color: #f5e9df;
+  font-size: 14px;
+  white-space: pre-line;
+  text-shadow: 0 2px 8px #110e16;
+}
+#heart-webcam-wrapper {
+  position: absolute;
+  bottom: 91px;
+  right: 16px;
+  width: clamp(75px, 12vw, 128px);
+  overflow: hidden;
+  border-radius: 10px;
+  opacity: 0;
+  pointer-events: none;
+}
+#heart-webcam { display: block; width: 100%; transform: scaleX(-1); }
+#media-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(100%, 780px);
+  max-height: 100%;
+  padding: clamp(22px, 5vw, 56px);
+  text-align: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+#media-viewer-overlay::backdrop { background: #0c0810eF; }
+.viewer-media-wrapper img { display: block; max-width: 100%; max-height: 65svh; margin: auto; border: 1px solid #a47a73; }
+.viewer-caption h3 { font: 500 24px Georgia, "Songti SC", serif; margin: 12px 0 0; }
+.viewer-caption p { color: #c1a5a8; font-size: 13px; margin: 7px 0 0; }
+.viewer-controls { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+.viewer-close-btn { position: absolute; top: 4px; right: 8px; font-size: 21px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
